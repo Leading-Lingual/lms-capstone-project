@@ -1,0 +1,27 @@
+{
+  "name": "thriving-in-tech-lms",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "overrides": {
+    "@prisma/config": { "deepmerge-ts": "8.0.2" },
+    "prisma": { "mysql2": "3.24.5" }
+  },
+  "scripts": {
+    "dev": "npm --workspace backend run dev",
+    "build": "npm --workspace backend run build",
+    "typecheck": "npm --workspace backend run typecheck",
+    "lint": "npm --workspace backend run lint",
+    "format": "npm --workspace backend run format",
+    "format:check": "npm --workspace backend run format:check",
+    "test": "npm --workspace backend run test",
+    "test:integration": "npm --workspace backend run test:integration",
+    "db:generate": "npm --workspace backend run db:generate",
+    "db:migrate": "npm --workspace backend run db:migrate",
+    "db:migrate:test": "npm --workspace backend run db:migrate:test",
+    "admin:create": "npm --workspace backend run admin:create",
+    "local:setup": "node scripts/setup-local.mjs",
+    "db:up": "docker compose --env-file backend/.env up -d postgres"
+  }
+}

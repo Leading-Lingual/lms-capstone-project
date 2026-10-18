@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum Role {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+enum TokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique @db.VarChar(254)
+  name String @db.VarChar(100)
+  passwordHash String
+  role Role @default(STUDENT)
+  emailVerifiedAt DateTime? @db.Timestamptz(3)
+  lecturerApprovedAt DateTime? @db.Timestamptz(3)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  sessions Session[]
+  tokens AuthToken[]
+  courses Course[]
+  enrolments Enrolment[]
+  teaching CourseLecturer[]
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([userId])
+  @@index([expiresAt])
+}
+model AuthToken {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose TokenPurpose
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([userId, purpose])
+}
+model Course {
+  id String @id @default(uuid()) @db.Uuid
+  title String @db.VarChar(160)
+  description String @default("") @db.VarChar(5000)
+  status PublicationStatus @default(DRAFT)
+  archivedAt DateTime? @db.Timestamptz(3)
+  ownerId String @db.Uuid
+  owner User @relation(fields: [ownerId], references: [id])
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  enrolments Enrolment[]
+  lecturers CourseLecturer[]
+  @@index([status, archivedAt])
+}
+model Enrolment {
+  courseId String @db.Uuid
+  studentId String @db.Uuid
+  course Course @relation(fields: [courseId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([courseId, studentId])
+  @@index([studentId])
+}
+model CourseLecturer {
+  courseId String @db.Uuid
+  lecturerId String @db.Uuid
+  course Course @relation(fields: [courseId], references: [id])
+  lecturer User @relation(fields: [lecturerId], references: [id])
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([courseId, lecturerId])
+  @@index([lecturerId])
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  actorId String? @db.Uuid
+  action String @db.VarChar(100)
+  resourceId String @db.Uuid
+  requestId String @db.VarChar(100)
+  metadata Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([resourceId, createdAt])
+}
+model EmailJob {
+  id String @id @default(uuid()) @db.Uuid
+  payload String
+  attempts Int @default(0)
+  availableAt DateTime @default(now()) @db.Timestamptz(3)
+  lockedUntil DateTime? @db.Timestamptz(3)
+  deliveredAt DateTime? @db.Timestamptz(3)
+  lastError String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([deliveredAt, availableAt, lockedUntil])
+}

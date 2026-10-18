@@ -1,0 +1,21 @@
+name: thriving-tech-lms
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lms_migrator
+      POSTGRES_DB: lms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run local:setup first}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Run npm run local:setup first}
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - lms-postgres:/var/lib/postgresql/data
+      - ./scripts/init-database.sh:/docker-entrypoint-initdb.d/10-lms.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms_migrator -d lms"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  lms-postgres:

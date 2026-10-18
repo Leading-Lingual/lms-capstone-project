@@ -1,0 +1,54 @@
+{
+  "name": "@thriving-tech/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "lint": "eslint src scripts test prisma.config.ts vitest.config.ts --ignore-pattern src/generated/**",
+    "format": "prettier --write src scripts test prisma.config.ts vitest.config.ts docs README.md *.json --ignore-path .prettierignore",
+    "format:check": "prettier --check src scripts test prisma.config.ts vitest.config.ts docs README.md *.json --ignore-path .prettierignore",
+    "test": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "docs:generate": "tsx scripts/generate-openapi.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:test": "tsx scripts/migrate-test.ts",
+    "admin:create": "tsx scripts/create-admin.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.0",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
+    "helmet": "8.3.0",
+    "pino": "^10.0.0",
+    "pino-http": "11.0.0",
+    "prisma": "7.10.0",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.0",
+    "eslint": "10.12.0",
+    "prettier": "3.9.10",
+    "supertest": "^7.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.4"
+  }
+}
