@@ -50,12 +50,12 @@ Before opening access to a pilot cohort, complete database and object-storage re
 
 ```powershell
 docker compose -f compose.smoke.yaml up --build -d --wait api
-node scripts/smoke-api.mjs http://127.0.0.1:5087
+docker compose -f compose.smoke.yaml run --rm --no-deps smoke
 docker compose -f compose.smoke.yaml exec -T api node -e "if (process.getuid() === 0) process.exit(1)"
 docker compose -f compose.smoke.yaml down
 ```
 
-This creates a separate PostgreSQL database with synthetic credentials and an internal network that prevents outbound email delivery. It neither uses nor resets the developer's normal database.
+This creates a separate PostgreSQL database with synthetic credentials and an internal network that prevents outbound email delivery. The smoke probe runs in another container on that network and checks the API through its service hostname. No host port is exposed. It neither uses nor resets the developer's normal database.
 
 ## Rollback and failure handling
 

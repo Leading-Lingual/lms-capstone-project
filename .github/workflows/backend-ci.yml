@@ -28,8 +28,8 @@ jobs:
       - run: npm --workspace backend run docs:generate
       - run: git diff --exit-code -- backend/docs/openapi.json
       - run: npm audit --audit-level=high
-      - run: docker compose -f compose.smoke.yaml up --build -d --wait api
-      - run: node scripts/smoke-api.mjs http://127.0.0.1:5087
+      - run: docker compose -f compose.smoke.yaml up --build -d --wait --wait-timeout 180 api
+      - run: docker compose -f compose.smoke.yaml run --rm --no-deps smoke
       - name: Verify non-root runtime
         run: docker compose -f compose.smoke.yaml exec -T api node -e "if (process.getuid() === 0) process.exit(1)"
       - name: Stop smoke containers

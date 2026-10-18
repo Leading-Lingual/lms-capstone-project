@@ -37,11 +37,18 @@ services:
       RESEND_API_KEY: synthetic-smoke-key-never-used
       EMAIL_FROM: noreply@example.test
       MAIL_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    ports:
-      - "127.0.0.1:5087:5000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+    networks: [isolated]
+  smoke:
+    image: lms-deployment-smoke:local
+    command: ["node", "/smoke-api.mjs", "http://api:5000"]
+    volumes:
+      - ./scripts/smoke-api.mjs:/smoke-api.mjs:ro
+    depends_on:
+      api:
+        condition: service_healthy
     networks: [isolated]
 networks:
   isolated:

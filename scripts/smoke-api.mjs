@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-const base = process.argv[2] ?? 'http://127.0.0.1:5087';
+const base = process.argv[2];
+assert.ok(base, 'Usage: node scripts/smoke-api.mjs https://your-api-domain');
 for (const [path, status] of [['health', 'ok'], ['ready', 'ready']]) {
   const response = await fetch(new URL(`/api/v1/${path}`, base), { signal: AbortSignal.timeout(10000) });
   assert.equal(response.status, 200, `${path} must return 200`);
