@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/.local
+**/coverage
+**/*.log
+backend/src/generated
+.git
+.github
+.agents
+.codex
+.aws
+tmp
+*.docx
+*.png

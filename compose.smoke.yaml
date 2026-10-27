@@ -1,0 +1,55 @@
+name: thriving-tech-lms-smoke
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lms_migrator
+      POSTGRES_DB: lms
+      POSTGRES_PASSWORD: container_smoke_owner_password
+      APP_DB_PASSWORD: container_smoke_app_password
+    volumes:
+      - ./scripts/init-database.sh:/docker-entrypoint-initdb.d/10-lms.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms_migrator -d lms"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [isolated]
+  migrate:
+    image: lms-deployment-smoke:local
+    build: .
+    command: ["npm", "run", "db:migrate"]
+    environment:
+      DIRECT_URL: postgresql://lms_migrator:container_smoke_owner_password@postgres:5432/lms
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [isolated]
+  api:
+    image: lms-deployment-smoke:local
+    build: .
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://lms_app:container_smoke_app_password@postgres:5432/lms
+      FRONTEND_URL: https://app.example.test
+      FRONTEND_ORIGINS: https://app.example.test
+      EMAIL_DRIVER: resend
+      RESEND_API_KEY: synthetic-smoke-key-never-used
+      EMAIL_FROM: noreply@example.test
+      MAIL_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [isolated]
+  smoke:
+    image: lms-deployment-smoke:local
+    command: ["node", "/smoke-api.mjs", "http://api:5000"]
+    volumes:
+      - ./scripts/smoke-api.mjs:/smoke-api.mjs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [isolated]
+networks:
+  isolated:
+    internal: true
