@@ -15,6 +15,7 @@ import { errorHandler } from './middleware/error-handler.middleware.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { adminUsersRoutes, usersRoutes } from './modules/users/users.routes.js';
 import { coursesRoutes } from './modules/courses/courses.routes.js';
+import { docsRoutes } from './modules/docs/docs.routes.js';
 
 export function createApp(db: Database, config: Config) {
   const app = express();
@@ -84,6 +85,7 @@ export function createApp(db: Database, config: Config) {
   );
   app.use(express.json({ limit: '64kb' }));
   app.use(cookieParser());
+  app.use('/api/docs', docsRoutes(config));
   app.use('/api/v1/auth', authRoutes(db, config));
   app.use('/api/v1/users', authenticate(db), usersRoutes(db));
   app.use('/api/v1/admin/users', authenticate(db), adminUsersRoutes(db));

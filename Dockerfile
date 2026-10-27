@@ -8,6 +8,7 @@ COPY backend/package.json backend/package.json
 RUN npm ci
 COPY backend/tsconfig*.json backend/prisma.config.ts backend/
 COPY backend/prisma backend/prisma
+COPY backend/docs/openapi.json backend/docs/openapi.json
 COPY backend/src backend/src
 RUN npm run build && npm prune --omit=dev
 
@@ -19,6 +20,7 @@ COPY --from=build --chown=node:node /app/backend/package.json backend/package.js
 COPY --from=build --chown=node:node /app/backend/dist backend/dist
 COPY --from=build --chown=node:node /app/backend/prisma backend/prisma
 COPY --from=build --chown=node:node /app/backend/prisma.config.ts backend/prisma.config.ts
+COPY --from=build --chown=node:node /app/backend/docs/openapi.json backend/docs/openapi.json
 USER node
 WORKDIR /app/backend
 EXPOSE 5000
