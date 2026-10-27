@@ -42,6 +42,10 @@ The default mailbox is private local development output, excluded from source co
 
 ## API contract and checks
 
+Interactive Swagger UI is served at `/api/docs` (also `/api/docs/`). The raw schema is at `/api/docs/openapi.json`. The documentation and its bundled assets are public; application endpoints continue to enforce authentication, roles, course membership, and allowed write origins. No external CDN or schema validator is used.
+
+For authenticated requests in Swagger, execute `/auth/login` first; the browser stores the HttpOnly session cookie and sends it with subsequent requests. Keep the documentation site's origin in `FRONTEND_ORIGINS` when using Try it out, including after a separate frontend is introduced. API keys or passwords are not persisted in Swagger's browser storage.
+
 [OpenAPI](docs/openapi.json) defines implemented routes, bodies, responses, roles, membership rules, write-origin requirements, errors, and pagination. Regenerate it with `npm --workspace backend run docs:generate` after changing the contract.
 
 Run from the project root:
