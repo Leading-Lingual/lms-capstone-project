@@ -44,7 +44,7 @@ describe('Resend delivery', () => {
     const message = {
       to: 'student@example.test',
       subject: 'Verify account',
-      text: 'Private verification link',
+      text: 'Your Thriving in Tech verification code is: 012345',
     };
     await transport.send('job-id', message);
     await transport.send('job-id', message);

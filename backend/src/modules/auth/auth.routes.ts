@@ -10,7 +10,7 @@ import {
   loginSchema,
   registerSchema,
   resetSchema,
-  tokenSchema,
+  verifyEmailSchema,
 } from './auth.schema.js';
 
 export function authRoutes(db: Database, config: Config) {
@@ -43,13 +43,14 @@ export function authRoutes(db: Database, config: Config) {
       res,
       {
         message:
-          'If registration is available for this email, a verification message will be sent. Existing users can sign in or request recovery.',
+          'If registration is available for this email, a verification code will be emailed. Existing users can sign in or request recovery.',
       },
       202,
     );
   });
   router.post('/verify-email', limit, async (req, res) => {
-    await service.verifyEmail(tokenSchema.parse(req.body).token, req.requestId);
+    const input = verifyEmailSchema.parse(req.body);
+    await service.verifyEmail(input.email, input.otp, req.requestId);
     ok(req, res, { message: 'Email verified.' });
   });
   for (const [path, purpose] of [
@@ -57,7 +58,7 @@ export function authRoutes(db: Database, config: Config) {
     ['forgot-password', 'RESET_PASSWORD'],
   ] as const) {
     router.post(`/${path}`, limit, async (req, res) => {
-      await service.requestLink(emailRequestSchema.parse(req.body).email, purpose);
+      await service.requestEmail(emailRequestSchema.parse(req.body).email, purpose);
       ok(req, res, { message: 'If the account is eligible, an email will be sent.' }, 202);
     });
   }

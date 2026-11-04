@@ -15,5 +15,9 @@ export const loginSchema = z.strictObject({
   password: z.string().min(1).max(128),
 });
 export const emailRequestSchema = z.strictObject({ email: emailSchema });
+export const verifyEmailSchema = z.strictObject({
+  email: emailSchema,
+  otp: z.string().regex(/^\d{6}$/, 'Enter the six-digit email code.'),
+});
 export const tokenSchema = z.strictObject({ token: z.string().regex(/^[a-f0-9]{64}$/) });
 export const resetSchema = tokenSchema.extend({ password: passwordSchema });
