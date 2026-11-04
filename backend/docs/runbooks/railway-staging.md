@@ -13,22 +13,33 @@ This runbook deploys the current API foundation, not the complete LMS. The front
 
 ## Required environment variables
 
-| Variable            | Staging value                                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| NODE_ENV            | `production` even in the staging environment, to enable secure cookies and validation                                   |
-| DATABASE_URL        | Railway-private PostgreSQL URL using a restricted runtime role with data access, not the database owner                 |
-| DIRECT_URL          | Railway-private PostgreSQL URL using the migration owner role                                                           |
-| FRONTEND_URL        | HTTPS URL reserved for the frontend verification and password recovery pages                                            |
-| FRONTEND_ORIGINS    | Exact comma-separated HTTPS frontend origins without paths or trailing slashes                                          |
-| EMAIL_DRIVER        | `resend`                                                                                                                |
-| RESEND_API_KEY      | Secret key for the selected Resend project                                                                              |
-| EMAIL_FROM          | Sender email belonging to a verified domain                                                                             |
-| MAIL_ENCRYPTION_KEY | Stable random 32-byte key encoded as 64 hexadecimal characters                                                          |
-| TRUST_PROXY_HOPS    | Use `1` only after confirming the request path has exactly one trusted edge proxy; otherwise review the actual topology |
-| SESSION_TTL_HOURS   | At most `168`; defaults to seven days                                                                                   |
-| LOG_LEVEL           | `info`                                                                                                                  |
+| Variable            | Staging value                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| NODE_ENV            | `production` even in the staging environment, to enable secure cookies and validation                                    |
+| DATABASE_URL        | Railway-private PostgreSQL URL using a restricted runtime role with data access, not the database owner                  |
+| DIRECT_URL          | Railway-private PostgreSQL URL using the migration owner role                                                            |
+| FRONTEND_URL        | One frontend URL for password recovery links; HTTPS for deployed frontends, or an approved localhost origin below        |
+| FRONTEND_ORIGINS    | Exact comma-separated frontend origins; HTTPS for deployed frontends, with the three approved localhost exceptions below |
+| EMAIL_DRIVER        | `resend`                                                                                                                 |
+| RESEND_API_KEY      | Secret key for the selected Resend project                                                                               |
+| EMAIL_FROM          | Sender email belonging to a verified domain                                                                              |
+| MAIL_ENCRYPTION_KEY | Stable random 32-byte key encoded as 64 hexadecimal characters                                                           |
+| TRUST_PROXY_HOPS    | Use `1` only after confirming the request path has exactly one trusted edge proxy; otherwise review the actual topology  |
+| SESSION_TTL_HOURS   | At most `168`; defaults to seven days                                                                                    |
+| LOG_LEVEL           | `info`                                                                                                                   |
 
 Allow Railway to supply PORT. Production HOST defaults to 0.0.0.0; do not set it to localhost. FRONTEND_URL is needed for email links even though those pages are not yet implemented. Keep the frontend and API on the same site when the frontend is introduced because cookies use SameSite Lax. Unrelated Railway and frontend provider domains will need a reviewed cookie and CSRF strategy or custom domains.
+
+For frontend development against Railway, explicitly allow HTTP localhost on ports 3000, 5173, and 8081. Other HTTP origins remain rejected in production. These origins are permitted only when listed in FRONTEND_ORIGINS; there is no implicit wildcard. Keep the API origin listed for Swagger Try it out:
+
+```dotenv
+FRONTEND_URL=http://localhost:3000
+FRONTEND_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8081,https://lms-capstone-project-production.up.railway.app
+```
+
+FRONTEND_URL must be a single URL, never a comma-separated list. When the deployed frontend is ready, set FRONTEND_URL to its HTTPS address and append that exact origin to FRONTEND_ORIGINS. Do not include paths or trailing slashes in origins. A password recovery link uses the single configured FRONTEND_URL for all users; email verification uses an OTP and does not depend on this address.
+
+This exception enables CORS and origin checks for local registration, OTP verification, and recovery requests. It does not change the Secure, HttpOnly, SameSite Lax session cookie. For authenticated local frontend testing against Railway, use an HTTPS local frontend with a same-origin development proxy (including the configured upstream Origin), or run the API locally on the same site. Merely adding localhost to CORS does not remove browsers' cross-site cookie restrictions.
 
 Create the runtime database role through a controlled database administration session before deploying. Grant CONNECT to the intended database, USAGE on its application schema, and SELECT, INSERT, UPDATE, DELETE on application tables, plus sequence privileges where needed. Set default privileges for the migration owner so future tables remain accessible. Do not grant superuser, BYPASSRLS, or schema-creation permissions to the runtime role. Limit audit table writes to append operations where practical. Local Compose demonstrates the initial role separation; do not reuse its passwords or smoke-test passwords.
 
