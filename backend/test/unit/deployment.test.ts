@@ -21,16 +21,51 @@ describe('deployment configuration', () => {
     expect(config.HOST).toBe('0.0.0.0');
     expect(envSchema.parse({ ...base, NODE_ENV: 'development' }).HOST).toBe('127.0.0.1');
   });
-  it('rejects mailbox delivery, missing provider secrets, and HTTP origins in production', () => {
+  it('rejects mailbox delivery and missing provider secrets in production', () => {
     expect(envSchema.safeParse({ ...base, EMAIL_DRIVER: 'mailbox' }).success).toBe(false);
     expect(envSchema.safeParse({ ...base, RESEND_API_KEY: '' }).success).toBe(false);
     expect(envSchema.safeParse({ ...base, EMAIL_FROM: '' }).success).toBe(false);
-    expect(
-      envSchema.safeParse({ ...base, FRONTEND_ORIGINS: 'http://localhost:3000' }).success,
-    ).toBe(false);
-    expect(envSchema.safeParse({ ...base, FRONTEND_URL: 'http://localhost:3000' }).success).toBe(
+  });
+  it('allows the three requested localhost origins alongside a deployed HTTPS frontend', () => {
+    const origins =
+      'http://localhost:3000,http://localhost:5173,http://localhost:8081,https://app.example.com';
+    for (const url of origins.split(',')) {
+      const config = envSchema.parse({ ...base, FRONTEND_URL: url, FRONTEND_ORIGINS: origins });
+      expect(config.FRONTEND_URL).toBe(url);
+      expect(config.FRONTEND_ORIGINS).toEqual(origins.split(','));
+    }
+  });
+  it('rejects HTTP remote hosts, localhost lookalikes, unapproved ports, and origin paths', () => {
+    for (const value of [
+      'http://app.example.com',
+      'http://localhost.evil.example:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://localhost:3000/path',
+      'http://localhost:3000/',
+    ]) {
+      expect(envSchema.safeParse({ ...base, FRONTEND_ORIGINS: value }).success, value).toBe(false);
+    }
+    expect(envSchema.safeParse({ ...base, FRONTEND_URL: 'http://app.example.com' }).success).toBe(
       false,
     );
+  });
+  it('reports malformed lists as validation errors without throwing, and requires one frontend URL', () => {
+    for (const value of [
+      '',
+      'not-a-url',
+      'https://app.example.com,invalid',
+      'https://app.example.com,',
+    ]) {
+      expect(envSchema.safeParse({ ...base, FRONTEND_ORIGINS: value }).success).toBe(false);
+    }
+    const result = envSchema.safeParse({
+      ...base,
+      FRONTEND_URL: 'http://localhost:3000,http://localhost:5173',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues.some((issue) => issue.path[0] === 'FRONTEND_URL')).toBe(true);
   });
 });
 describe('Resend delivery', () => {

@@ -38,9 +38,11 @@ Supply `ADMIN_EMAIL` and `ADMIN_PASSWORD` through your shell environment, then r
 
 For every write, send `Origin: http://localhost:3000`, or another exact configured allowed origin. Browser clients must include credentials. All paths above are relative to `/api/v1`.
 
+Railway also accepts explicitly configured HTTP origins `http://localhost:3000`, `http://localhost:5173`, and `http://localhost:8081` for frontend development. Use one `FRONTEND_URL` and a comma-separated `FRONTEND_ORIGINS`; append the deployed HTTPS frontend origin when ready. Other HTTP origins remain blocked in production. See the [Railway runbook](docs/runbooks/railway-staging.md) for pasteable values and the session-cookie requirements for authenticated testing across sites.
+
 Verification codes expire after 10 minutes and allow five incorrect attempts. `POST /auth/resend-verification` accepts `{ "email": "student@example.com" }`; it returns a generic 202, including during the 60-second per-account cooldown. A new code invalidates the previous one. After verification, sign in normally. Password recovery continues to use a single-use link, not an OTP.
 
-The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. To send actual email locally, set `EMAIL_DRIVER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` in `backend/.env`, then restart the backend. Production uses the existing Resend transport and requires provider credentials and HTTPS frontend configuration. Origin restrictions apply to OTP endpoints just as they do to registration.
+The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. To send actual email locally, set `EMAIL_DRIVER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` in `backend/.env`, then restart the backend. Production uses the existing Resend transport and requires provider credentials and validated frontend configuration. Origin restrictions apply to OTP endpoints just as they do to registration.
 
 The OTP migration invalidates outstanding email verification links; existing unverified users must request a code. Existing sessions, verified accounts, and password recovery links are unaffected. Failed-attempt counts are persisted transactionally and verification hashes are keyed and scoped to the account and challenge. Email payloads remain encrypted in the delivery queue.
 
