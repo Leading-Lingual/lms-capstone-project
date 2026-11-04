@@ -46,6 +46,10 @@ The default mailbox is private local development output, excluded from source co
 
 The OTP migration invalidates outstanding email verification links; existing unverified users must request a code. Existing sessions, verified accounts, and password recovery links are unaffected. Failed-attempt counts are persisted transactionally and verification hashes are keyed and scoped to the account and challenge. Email payloads remain encrypted in the delivery queue.
 
+Account messages include branded HTML and a plain-text fallback. Verification messages display the six-digit code and 10-minute expiry; password recovery messages include a reset button, copyable link, and one-hour expiry. Names and links are HTML-escaped. Templates use inline styling, presentation tables, web-safe fonts, and no remote images, scripts, or tracking pixels. The local mailbox retains both versions; older text-only jobs remain supported. No additional Railway variables or database migration is needed.
+
+Run `npm --workspace backend run email:preview` to generate synthetic desktop/mobile previews in `tmp/email-previews/index.html` at the repository root. The sample OTP and reset link do not access real accounts. Browser previews support visual review; actual rendering can differ between email clients.
+
 ## API contract and checks
 
 Interactive Swagger UI is served at `/api/docs` (also `/api/docs/`). The raw schema is at `/api/docs/openapi.json`. The documentation and its bundled assets are public; application endpoints continue to enforce authentication, roles, course membership, and allowed write origins. No external CDN or schema validator is used.

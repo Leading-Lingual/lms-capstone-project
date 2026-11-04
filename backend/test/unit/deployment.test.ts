@@ -80,6 +80,7 @@ describe('Resend delivery', () => {
       to: 'student@example.test',
       subject: 'Verify account',
       text: 'Your Thriving in Tech verification code is: 012345',
+      html: '<html><body><p>012345</p></body></html>',
     };
     await transport.send('job-id', message);
     await transport.send('job-id', message);
@@ -95,6 +96,7 @@ describe('Resend delivery', () => {
       to: [message.to],
       subject: message.subject,
       text: message.text,
+      html: message.html,
     });
     expect(send.mock.calls[1]?.[1]?.headers).toEqual(options?.headers);
   });

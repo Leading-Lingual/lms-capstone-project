@@ -19,6 +19,7 @@
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "docs:generate": "tsx scripts/generate-openapi.ts",
+    "email:preview": "tsx scripts/preview-emails.ts",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:test": "tsx scripts/migrate-test.ts",
     "admin:create": "tsx scripts/create-admin.ts"
