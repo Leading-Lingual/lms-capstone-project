@@ -54,6 +54,7 @@ model AuthToken {
   purpose TokenPurpose
   expiresAt DateTime @db.Timestamptz(3)
   usedAt DateTime? @db.Timestamptz(3)
+  failedAttempts Int @default(0)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   @@index([userId, purpose])
 }

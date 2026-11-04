@@ -31,14 +31,18 @@ Supply `ADMIN_EMAIL` and `ADMIN_PASSWORD` through your shell environment, then r
 ## Account and course workflow
 
 1. Register a student or lecturer through `POST /auth/register`. Public registration cannot grant administrator privileges.
-2. Read the corresponding verification message from `backend/.local/mailbox`. Copy the fragment token from its link into `POST /auth/verify-email` as `{ "token": "..." }`.
+2. Read the six-digit OTP sent by Resend (or `backend/.local/mailbox` when using the local mailbox driver). Submit `POST /auth/verify-email` with `{ "email": "student@example.com", "otp": "012345" }`. Keep the OTP as a string to preserve leading zeroes. The registration response never contains it.
 3. Sign in through `POST /auth/login`. Lecturers need approval by an administrator first. Store the response cookie and send it on subsequent requests.
 4. An administrator creates a course, assigns a lecturer, enrols a student, and publishes the course. The student can now read it; another student cannot.
 5. Removing enrolment or deactivating an account blocks subsequent access. Archived published courses remain readable to existing members, while new members and edits are rejected.
 
 For every write, send `Origin: http://localhost:3000`, or another exact configured allowed origin. Browser clients must include credentials. All paths above are relative to `/api/v1`.
 
-The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. The links currently point at future frontend pages; use their tokens with the API until those pages exist. Production requires the Resend transport, a verified sender, provider credentials, and HTTPS frontend configuration; it rejects mailbox delivery.
+Verification codes expire after 10 minutes and allow five incorrect attempts. `POST /auth/resend-verification` accepts `{ "email": "student@example.com" }`; it returns a generic 202, including during the 60-second per-account cooldown. A new code invalidates the previous one. After verification, sign in normally. Password recovery continues to use a single-use link, not an OTP.
+
+The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. To send actual email locally, set `EMAIL_DRIVER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` in `backend/.env`, then restart the backend. Production uses the existing Resend transport and requires provider credentials and HTTPS frontend configuration. Origin restrictions apply to OTP endpoints just as they do to registration.
+
+The OTP migration invalidates outstanding email verification links; existing unverified users must request a code. Existing sessions, verified accounts, and password recovery links are unaffected. Failed-attempt counts are persisted transactionally and verification hashes are keyed and scoped to the account and challenge. Email payloads remain encrypted in the delivery queue.
 
 ## API contract and checks
 

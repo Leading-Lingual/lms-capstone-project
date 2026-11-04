@@ -5,6 +5,7 @@ import type { Config } from '../../config/env.schema.js';
 import { AppError } from '../../lib/errors.js';
 import { digest, encrypt, hashPassword, token, verifyPassword } from '../../lib/security.js';
 import { audit } from '../audit/audit.service.js';
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { registerSchema } from './auth.schema.js';
 import type { z } from 'zod';
 
@@ -19,23 +20,35 @@ export const safeUser = (user: User) => ({
 });
 export function createAuthService(db: Database, config: Config) {
   let dummyHash: Promise<string> | undefined;
+  const otpHash = (id: string, userId: string, code: string) =>
+    createHmac('sha256', config.MAIL_ENCRYPTION_KEY)
+      .update(`email-verification:${id}:${userId}:${code}`)
+      .digest('hex');
   async function issue(tx: Prisma.TransactionClient, user: User, purpose: TokenPurpose) {
-    const secret = token();
+    if (purpose === 'VERIFY_EMAIL') {
+      const recent = await tx.authToken.findFirst({
+        where: { userId: user.id, purpose, createdAt: { gt: new Date(Date.now() - 60000) } },
+      });
+      if (recent) return;
+    }
+    const id = randomUUID();
+    const secret =
+      purpose === 'VERIFY_EMAIL' ? String(randomInt(1000000)).padStart(6, '0') : token();
     await tx.authToken.updateMany({
       where: { userId: user.id, purpose, usedAt: null },
       data: { usedAt: new Date() },
     });
     await tx.authToken.create({
       data: {
+        id,
         userId: user.id,
-        tokenHash: digest(secret),
+        tokenHash: purpose === 'VERIFY_EMAIL' ? otpHash(id, user.id, secret) : digest(secret),
         purpose,
-        expiresAt: new Date(Date.now() + (purpose === 'VERIFY_EMAIL' ? 24 : 1) * 3600000),
+        expiresAt: new Date(Date.now() + (purpose === 'VERIFY_EMAIL' ? 10 * 60000 : 3600000)),
       },
     });
-    const route = purpose === 'VERIFY_EMAIL' ? 'verify-email' : 'reset-password';
     const link = new URL(
-      route,
+      'reset-password',
       config.FRONTEND_URL.endsWith('/') ? config.FRONTEND_URL : `${config.FRONTEND_URL}/`,
     );
     // Fragment values are not sent to web servers or referrer logs by the browser.
@@ -49,7 +62,10 @@ export function createAuthService(db: Database, config: Config) {
               purpose === 'VERIFY_EMAIL'
                 ? 'Verify your Thriving in Tech account'
                 : 'Reset your Thriving in Tech password',
-            text: `Open ${link.toString()} to continue. This link is single-use and expires. If you did not request this, ignore this message.`,
+            text:
+              purpose === 'VERIFY_EMAIL'
+                ? `Your Thriving in Tech verification code is: ${secret}\n\nEnter this code in the app to verify your email. It expires in 10 minutes and can only be used once. If you did not request this, ignore this message.`
+                : `Open ${link.toString()} to continue. This link is single-use and expires. If you did not request this, ignore this message.`,
           },
           config.MAIL_ENCRYPTION_KEY,
         ),
@@ -91,19 +107,44 @@ export function createAuthService(db: Database, config: Config) {
           throw error;
       }
     },
-    async requestLink(email: string, purpose: TokenPurpose) {
+    async requestEmail(email: string, purpose: TokenPurpose) {
       await transaction(db, async (tx) => {
         const user = await tx.user.findUnique({ where: { email } });
         if (!user || !user.isActive || (purpose === 'VERIFY_EMAIL' && user.emailVerifiedAt)) return;
         await issue(tx, user, purpose);
       });
     },
-    async verifyEmail(secret: string, requestId: string) {
-      await transaction(db, async (tx) => {
-        const user = await consume(tx, secret, 'VERIFY_EMAIL');
+    async verifyEmail(email: string, code: string, requestId: string) {
+      // Commit failed attempts before returning an error, so retries cannot reset the budget.
+      const verified = await transaction(db, async (tx) => {
+        const user = await tx.user.findUnique({ where: { email } });
+        if (!user || !user.isActive || user.emailVerifiedAt) return false;
+        const challenge = await tx.authToken.findFirst({
+          where: { userId: user.id, purpose: 'VERIFY_EMAIL', usedAt: null },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!challenge || challenge.expiresAt <= new Date() || challenge.failedAttempts >= 5)
+          return false;
+        const expected = Buffer.from(challenge.tokenHash, 'hex');
+        const actual = Buffer.from(otpHash(challenge.id, user.id, code), 'hex');
+        if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+          await tx.authToken.update({
+            where: { id: challenge.id },
+            data: { failedAttempts: { increment: 1 } },
+          });
+          return false;
+        }
+        await tx.authToken.update({ where: { id: challenge.id }, data: { usedAt: new Date() } });
         await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
         await audit(tx, user.id, requestId, 'EMAIL_VERIFIED', user.id);
+        return true;
       });
+      if (!verified)
+        throw new AppError(
+          400,
+          'OTP_INVALID',
+          'The code is invalid or expired. Request a new code if needed.',
+        );
     },
     async resetPassword(secret: string, password: string, requestId: string) {
       const passwordHash = await hashPassword(password);

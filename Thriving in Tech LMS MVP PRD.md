@@ -58,6 +58,8 @@ Create a course → assign an approved lecturer → enrol pilot students → con
 
 Support student registration, email verification, login, logout, forgotten passwords, and password reset. Lecturer registration creates a pending account until an administrator approves it. Seed the first administrator through a controlled setup process.
 
+Email verification uses a six-digit OTP delivered through Resend. The user enters the code in the frontend, which submits the email and OTP to the API. Codes expire after 10 minutes, are single-use, and allow five incorrect attempts. Resending has a 60-second per-account cooldown and invalidates the previous code when a new one is issued. Password recovery continues to use expiring links.
+
 Acceptance criteria: An unverified student cannot enter protected learning pages. Reset links expire and cannot be reused. Duplicate email registration is handled clearly. Login errors do not disclose whether an account exists. Pending lecturers cannot access lecturer tools.
 
 ### FR02 User and enrolment administration

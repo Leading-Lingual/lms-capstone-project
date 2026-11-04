@@ -5,7 +5,7 @@ import {
   registerSchema,
   loginSchema,
   emailRequestSchema,
-  tokenSchema,
+  verifyEmailSchema,
   resetSchema,
 } from '../src/modules/auth/auth.schema.js';
 import {
@@ -204,17 +204,20 @@ add('post', '/auth/register', 'Register a student or pending lecturer', {
   body: registerSchema,
   status: 202,
   details:
-    'Registration and duplicate registration return the same generic response. No session, verification token, or password is returned. Lecturer roles remain pending approval.',
+    'Queues a six-digit verification code for email delivery. Registration and duplicate registration return the same generic response. No session, OTP, or password is returned. Lecturer roles remain pending approval.',
 });
-add('post', '/auth/verify-email', 'Consume a single-use verification token', {
+add('post', '/auth/verify-email', 'Verify email using a six-digit emailed OTP', {
   public: true,
-  body: tokenSchema,
+  body: verifyEmailSchema,
+  details:
+    'Submit email and otp as strings. Codes expire after 10 minutes, allow five incorrect attempts per code, and can only be used once. Invalid, expired, exhausted, or ineligible requests return OTP_INVALID. Does not create a session; sign in afterward.',
 });
-add('post', '/auth/resend-verification', 'Request a verification link', {
+add('post', '/auth/resend-verification', 'Request a new verification OTP by email', {
   public: true,
   body: emailRequestSchema,
   status: 202,
-  details: 'Invalidates prior unused verification links. Uses a generic response.',
+  details:
+    'Send email only. At most one code is issued per account every 60 seconds; requests during the cooldown return the same generic 202 without sending another email. A newly issued code invalidates the previous code. Uses a generic response for unknown, inactive, or verified accounts.',
 });
 add('post', '/auth/forgot-password', 'Request a recovery link', {
   public: true,

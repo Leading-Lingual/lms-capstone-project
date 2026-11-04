@@ -180,7 +180,7 @@
     "/auth/register": {
       "post": {
         "summary": "Register a student or pending lecturer",
-        "description": "MVP foundation. Public account or health endpoint. Registration and duplicate registration return the same generic response. No session, verification token, or password is returned. Lecturer roles remain pending approval. Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
+        "description": "MVP foundation. Public account or health endpoint. Queues a six-digit verification code for email delivery. Registration and duplicate registration return the same generic response. No session, OTP, or password is returned. Lecturer roles remain pending approval. Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
         "operationId": "post__auth_register",
         "security": [],
         "parameters": [
@@ -301,8 +301,8 @@
     },
     "/auth/verify-email": {
       "post": {
-        "summary": "Consume a single-use verification token",
-        "description": "MVP foundation. Public account or health endpoint.  Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
+        "summary": "Verify email using a six-digit emailed OTP",
+        "description": "MVP foundation. Public account or health endpoint. Submit email and otp as strings. Codes expire after 10 minutes, allow five incorrect attempts per code, and can only be used once. Invalid, expired, exhausted, or ineligible requests return OTP_INVALID. Does not create a session; sign in afterward. Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
         "operationId": "post__auth_verify_email",
         "security": [],
         "parameters": [
@@ -398,8 +398,16 @@
               "schema": {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
-                "properties": { "token": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
-                "required": ["token"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "otp": { "type": "string", "pattern": "^\\d{6}$" }
+                },
+                "required": ["email", "otp"],
                 "additionalProperties": false
               }
             }
@@ -409,8 +417,8 @@
     },
     "/auth/resend-verification": {
       "post": {
-        "summary": "Request a verification link",
-        "description": "MVP foundation. Public account or health endpoint. Invalidates prior unused verification links. Uses a generic response. Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
+        "summary": "Request a new verification OTP by email",
+        "description": "MVP foundation. Public account or health endpoint. Send email only. At most one code is issued per account every 60 seconds; requests during the cooldown return the same generic 202 without sending another email. A newly issued code invalidates the previous code. Uses a generic response for unknown, inactive, or verified accounts. Authentication endpoints share a limit of 20 attempts per IP per 15 minutes. Other application requests share 300 requests per IP per minute. Writes require an allowed Origin. Validation rejects unknown fields. Cookie credentials require the browser credentials option.",
         "operationId": "post__auth_resend_verification",
         "security": [],
         "parameters": [

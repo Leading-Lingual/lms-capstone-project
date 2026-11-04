@@ -4,6 +4,8 @@ Date: 12 October 2026
 
 The production restriction and provider-selection status below describe the initial foundation. [Decision 0002](0002_railway_staging.md) supersedes them with Railway staging configuration and Resend support.
 
+[Decision 0003](0003_email_verification_otp.md) replaces email verification links with emailed OTPs. The recovery-link and session design below remains in effect.
+
 The first implementation slice uses Express.js 5 with strict TypeScript, Prisma 7, and PostgreSQL. Prisma 7.10.0 is pinned across the CLI, client, and PostgreSQL adapter; the registry's current Prisma latest tag was a prerelease at setup time. Runtime Node.js 24 is selected independently of Express.js as the backend framework.
 
 Authentication is application-owned. Passwords use Node's scrypt with N 131072, r 8, p 1, a random salt, and constant-time comparison. Random opaque sessions are stored as SHA-256 hashes, expire after at most seven days, and are transmitted only through an HttpOnly SameSite Lax cookie. Every request checks the current account's active status, role, verification, and lecturer approval. Logout, password reset, account deactivation, and role changes revoke sessions.

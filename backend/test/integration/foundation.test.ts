@@ -69,6 +69,14 @@ async function extractToken(email: string) {
   expect(secret).toBeDefined();
   return secret!;
 }
+async function extractOtp(email: string) {
+  await send();
+  const message = messages.findLast((m) => m.to === email);
+  expect(message?.text).not.toContain('#token=');
+  const code = message?.text.match(/verification code is: (\d{6})/)?.[1];
+  expect(code).toBeDefined();
+  return code!;
+}
 
 beforeAll(async () => {
   passwordHash = await hashPassword(password);
@@ -128,7 +136,7 @@ afterAll(async () => {
 });
 
 describe('FR01 account access', () => {
-  it('requires email verification, consumes the link once, and never returns secrets', async () => {
+  it('emails a single-use OTP, requires verification, and never returns secrets', async () => {
     const input = { email: 'NEW@example.test', name: 'New Student', password };
     const registration = await request(app)
       .post('/api/v1/auth/register')
@@ -141,26 +149,85 @@ describe('FR01 account access', () => {
       .set('Origin', origin)
       .send({ email: input.email, password });
     expect(before.status).toBe(403);
-    const secret = await extractToken('new@example.test');
-    const stored = await db.authToken.findFirstOrThrow({ where: { tokenHash: digest(secret) } });
+    const secret = await extractOtp('new@example.test');
+    expect(JSON.stringify(registration.body)).not.toContain(secret);
+    const stored = await db.authToken.findFirstOrThrow({ where: { purpose: 'VERIFY_EMAIL' } });
     expect(stored.tokenHash).not.toBe(secret);
+    expect(stored.tokenHash).not.toBe(digest(secret));
+    expect(stored.expiresAt.getTime() - stored.createdAt.getTime()).toBeGreaterThan(590000);
+    expect(stored.expiresAt.getTime() - stored.createdAt.getTime()).toBeLessThan(610000);
     const verification = await request(app)
       .post('/api/v1/auth/verify-email')
       .set('Origin', origin)
-      .send({ token: secret });
+      .send({ email: input.email, otp: secret });
     expect(verification.status).toBe(200);
     expect(
       (
         await request(app)
           .post('/api/v1/auth/verify-email')
           .set('Origin', origin)
-          .send({ token: secret })
+          .send({ email: input.email, otp: secret })
       ).status,
     ).toBe(400);
     const cookie = await login(input.email);
     expect(
       (await request(app).get('/api/v1/auth/me').set('Cookie', cookie)).body.data.passwordHash,
     ).toBeUndefined();
+  });
+  it('expires OTPs, binds them to the email, and persists five failed attempts', async () => {
+    const email = 'otp@example.test';
+    await write('/auth/register', '', { email, name: 'OTP Student', password });
+    const otp = await extractOtp(email);
+    const wrong = otp === '000000' ? '000001' : '000000';
+    expect(
+      (await write('/auth/verify-email', '', { email: 'missing@example.test', otp })).body.error
+        .code,
+    ).toBe('OTP_INVALID');
+    expect((await write('/auth/verify-email', '', { email, otp: Number(otp) })).status).toBe(400);
+    expect((await write('/auth/verify-email', '', { token: 'a'.repeat(64) })).status).toBe(400);
+    for (let i = 0; i < 5; i++) {
+      expect((await write('/auth/verify-email', '', { email, otp: wrong })).body.error.code).toBe(
+        'OTP_INVALID',
+      );
+    }
+    expect(
+      (await db.authToken.findFirstOrThrow({ where: { purpose: 'VERIFY_EMAIL' } })).failedAttempts,
+    ).toBe(5);
+    expect((await write('/auth/verify-email', '', { email, otp })).status).toBe(400);
+    await db.authToken.updateMany({ data: { failedAttempts: 0, expiresAt: new Date(0) } });
+    expect((await write('/auth/verify-email', '', { email, otp })).body.error.code).toBe(
+      'OTP_INVALID',
+    );
+  });
+  it('throttles resend per account, replaces old codes, and preserves generic responses', async () => {
+    const email = 'resend@example.test';
+    await write('/auth/register', '', { email, name: 'Resend Student', password });
+    const old = await extractOtp(email);
+    const cooldown = await write('/auth/resend-verification', '', { email });
+    expect(cooldown.status).toBe(202);
+    expect(await db.emailJob.count()).toBe(1);
+    const previous = await db.authToken.findFirstOrThrow({ where: { purpose: 'VERIFY_EMAIL' } });
+    await db.authToken.update({
+      where: { id: previous.id },
+      data: { createdAt: new Date(Date.now() - 61000) },
+    });
+    expect((await write('/auth/resend-verification', '', { email })).status).toBe(202);
+    const otp = await extractOtp(email);
+    expect(
+      (await db.authToken.findUniqueOrThrow({ where: { id: previous.id } })).usedAt,
+    ).not.toBeNull();
+    if (old !== otp)
+      expect((await write('/auth/verify-email', '', { email, otp: old })).status).toBe(400);
+    const responses = await Promise.all([
+      write('/auth/verify-email', '', { email, otp }),
+      write('/auth/verify-email', '', { email, otp }),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 400]);
+    const verified = await write('/auth/resend-verification', '', { email });
+    const unknown = await write('/auth/resend-verification', '', { email: 'missing@example.test' });
+    expect(verified.body.data).toEqual(unknown.body.data);
+    expect(verified.body.data).toEqual(cooldown.body.data);
+    expect(await db.emailJob.count()).toBe(2);
   });
   it('rejects administrator self-registration and unknown input fields', async () => {
     const response = await request(app)
