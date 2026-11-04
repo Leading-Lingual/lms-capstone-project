@@ -5,6 +5,7 @@ import type { Config } from '../../config/env.schema.js';
 import { AppError } from '../../lib/errors.js';
 import { digest, encrypt, hashPassword, token, verifyPassword } from '../../lib/security.js';
 import { audit } from '../audit/audit.service.js';
+import { passwordResetEmail, verificationEmail } from '../../infrastructure/email/templates.js';
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { registerSchema } from './auth.schema.js';
 import type { z } from 'zod';
@@ -56,17 +57,9 @@ export function createAuthService(db: Database, config: Config) {
     await tx.emailJob.create({
       data: {
         payload: encrypt(
-          {
-            to: user.email,
-            subject:
-              purpose === 'VERIFY_EMAIL'
-                ? 'Verify your Thriving in Tech account'
-                : 'Reset your Thriving in Tech password',
-            text:
-              purpose === 'VERIFY_EMAIL'
-                ? `Your Thriving in Tech verification code is: ${secret}\n\nEnter this code in the app to verify your email. It expires in 10 minutes and can only be used once. If you did not request this, ignore this message.`
-                : `Open ${link.toString()} to continue. This link is single-use and expires. If you did not request this, ignore this message.`,
-          },
+          purpose === 'VERIFY_EMAIL'
+            ? verificationEmail({ to: user.email, name: user.name, otp: secret })
+            : passwordResetEmail({ to: user.email, name: user.name, resetUrl: link.toString() }),
           config.MAIL_ENCRYPTION_KEY,
         ),
       },

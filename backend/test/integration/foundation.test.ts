@@ -6,7 +6,7 @@ import type { Express } from 'express';
 import { createApp } from '../../src/app.js';
 import { envSchema } from '../../src/config/env.schema.js';
 import { createDatabase } from '../../src/infrastructure/database/client.js';
-import { hashPassword, digest } from '../../src/lib/security.js';
+import { hashPassword, digest, encrypt } from '../../src/lib/security.js';
 import { createEmailDispatcher } from '../../src/infrastructure/email/email.service.js';
 import type { EmailMessage } from '../../src/infrastructure/email/mailbox.transport.js';
 
@@ -67,6 +67,8 @@ async function extractToken(email: string) {
   expect(message).toBeDefined();
   const secret = message!.text.match(/#token=([a-f0-9]{64})/)?.[1];
   expect(secret).toBeDefined();
+  expect(message!.html).toContain(`#token=${secret}`);
+  expect(message!.html).toContain('Reset password</a>');
   return secret!;
 }
 async function extractOtp(email: string) {
@@ -75,6 +77,7 @@ async function extractOtp(email: string) {
   expect(message?.text).not.toContain('#token=');
   const code = message?.text.match(/verification code is: (\d{6})/)?.[1];
   expect(code).toBeDefined();
+  expect(message?.html).toContain(`>${code}</p>`);
   return code!;
 }
 
@@ -458,6 +461,28 @@ describe('FR02 permissions and enrolment', () => {
 });
 
 describe('infrastructure', () => {
+  it('delivers pre-existing text-only email jobs after HTML support is deployed', async () => {
+    await db.emailJob.create({
+      data: {
+        payload: encrypt(
+          {
+            to: 'legacy@example.test',
+            subject: 'Legacy queued email',
+            text: 'Original plain text body',
+          },
+          config.MAIL_ENCRYPTION_KEY,
+        ),
+      },
+    });
+    await send();
+    expect(messages).toEqual([
+      {
+        to: 'legacy@example.test',
+        subject: 'Legacy queued email',
+        text: 'Original plain text body',
+      },
+    ]);
+  });
   it('serves liveness, readiness, request IDs, and safe validation errors', async () => {
     const health = await request(app).get('/api/v1/health');
     expect(health.status).toBe(200);

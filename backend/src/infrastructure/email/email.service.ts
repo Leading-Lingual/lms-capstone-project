@@ -4,7 +4,12 @@ import { decrypt } from '../../lib/security.js';
 import type { EmailTransport } from './mailbox.transport.js';
 import { EmailDeliveryError } from './resend.transport.js';
 
-const messageSchema = z.object({ to: z.email(), subject: z.string(), text: z.string() });
+const messageSchema = z.object({
+  to: z.email(),
+  subject: z.string(),
+  text: z.string(),
+  html: z.string().optional(),
+});
 export function createEmailDispatcher(db: Database, transport: EmailTransport, key: string) {
   return async function dispatch() {
     const now = new Date();

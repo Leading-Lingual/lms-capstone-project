@@ -28,6 +28,7 @@ export function resendTransport(
             to: [message.to],
             subject: message.subject,
             text: message.text,
+            ...(message.html ? { html: message.html } : {}),
           }),
           signal: AbortSignal.timeout(10000),
         });
