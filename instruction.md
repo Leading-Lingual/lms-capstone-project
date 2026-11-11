@@ -52,7 +52,7 @@ Use standard HTTP APIs. Do not add microservices, MongoDB, a second notification
 | Validation | Zod or the team's single selected schema validator at external boundaries |
 | File storage | Private AWS S3 or Cloudinary storage with verified support for the required private file types; provider selection remains open |
 | Video and meetings | External hosted videos and manually entered Zoom and recording links |
-| Email | Resend for hosted deployments through a provider interface; private mailbox for local development |
+| Email | Brevo for hosted deployments through a provider interface; Resend remains supported; private mailbox for local development |
 | API documentation | OpenAPI contract matching actual routes and schemas |
 | Logging and security | Structured request logs, security headers, explicit CORS allowlist, and authentication and upload rate limits |
 | Hosting | Railway staging using the root Dockerfile and railway.json; see the staging runbook |

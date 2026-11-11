@@ -13,20 +13,21 @@ This runbook deploys the current API foundation, not the complete LMS. The front
 
 ## Required environment variables
 
-| Variable            | Staging value                                                                                                            |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| NODE_ENV            | `production` even in the staging environment, to enable secure cookies and validation                                    |
-| DATABASE_URL        | Railway-private PostgreSQL URL using a restricted runtime role with data access, not the database owner                  |
-| DIRECT_URL          | Railway-private PostgreSQL URL using the migration owner role                                                            |
-| FRONTEND_URL        | One frontend URL for password recovery links; HTTPS for deployed frontends, or an approved localhost origin below        |
-| FRONTEND_ORIGINS    | Exact comma-separated frontend origins; HTTPS for deployed frontends, with the three approved localhost exceptions below |
-| EMAIL_DRIVER        | `resend`                                                                                                                 |
-| RESEND_API_KEY      | Secret key for the selected Resend project                                                                               |
-| EMAIL_FROM          | Sender email belonging to a verified domain                                                                              |
-| MAIL_ENCRYPTION_KEY | Stable random 32-byte key encoded as 64 hexadecimal characters                                                           |
-| TRUST_PROXY_HOPS    | Use `1` only after confirming the request path has exactly one trusted edge proxy; otherwise review the actual topology  |
-| SESSION_TTL_HOURS   | At most `168`; defaults to seven days                                                                                    |
-| LOG_LEVEL           | `info`                                                                                                                   |
+| Variable             | Staging value                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| NODE_ENV             | `production` even in the staging environment, to enable secure cookies and validation                                    |
+| DATABASE_URL         | Railway-private PostgreSQL URL using a restricted runtime role with data access, not the database owner                  |
+| DIRECT_URL           | Railway-private PostgreSQL URL using the migration owner role                                                            |
+| FRONTEND_URL         | One frontend URL for password recovery links; HTTPS for deployed frontends, or an approved localhost origin below        |
+| FRONTEND_ORIGINS     | Exact comma-separated frontend origins; HTTPS for deployed frontends, with the three approved localhost exceptions below |
+| EMAIL_PROVIDER       | `brevo`; takes precedence over the legacy EMAIL_DRIVER setting                                                           |
+| BREVO_API_KEY        | Secret Renova Africa Brevo API key, provided through Railway Variables                                                   |
+| BREVO_API_TIMEOUT_MS | `10000`; permitted range 1000–30000 milliseconds                                                                         |
+| EMAIL_FROM           | `Renova Africa <hello@renovaafrica.com>`; must be an active sender in that Brevo account                                 |
+| MAIL_ENCRYPTION_KEY  | Stable random 32-byte key encoded as 64 hexadecimal characters                                                           |
+| TRUST_PROXY_HOPS     | Use `1` only after confirming the request path has exactly one trusted edge proxy; otherwise review the actual topology  |
+| SESSION_TTL_HOURS    | At most `168`; defaults to seven days                                                                                    |
+| LOG_LEVEL            | `info`                                                                                                                   |
 
 Allow Railway to supply PORT. Production HOST defaults to 0.0.0.0; do not set it to localhost. FRONTEND_URL is needed for email links even though those pages are not yet implemented. Keep the frontend and API on the same site when the frontend is introduced because cookies use SameSite Lax. Unrelated Railway and frontend provider domains will need a reviewed cookie and CSRF strategy or custom domains.
 

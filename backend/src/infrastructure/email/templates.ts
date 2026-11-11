@@ -1,11 +1,6 @@
 import type { EmailMessage } from './mailbox.transport.js';
 
-const escapeHtml = (value: string) =>
-  value.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
-  );
+import { escapeHtml } from './html.js';
 
 function layout(title: string, preview: string, content: string) {
   return `<!DOCTYPE html>

@@ -329,7 +329,7 @@ const document = {
     title: 'Thriving in Tech LMS Foundation API',
     version: '0.1.0',
     description:
-      'FR01 and FR02 foundation plus FR03 course shells. Local mailbox and Resend email transports. Remaining MVP modules are not implemented.',
+      'FR01 and FR02 foundation plus FR03 course shells. Local mailbox, Brevo, and Resend email transports. Remaining MVP modules are not implemented.',
   },
   servers: [{ url: '/api/v1' }],
   paths,
