@@ -33,9 +33,10 @@ services:
       DATABASE_URL: postgresql://lms_app:container_smoke_app_password@postgres:5432/lms
       FRONTEND_URL: https://app.example.test
       FRONTEND_ORIGINS: https://app.example.test
-      EMAIL_DRIVER: resend
-      RESEND_API_KEY: synthetic-smoke-key-never-used
-      EMAIL_FROM: noreply@example.test
+      EMAIL_PROVIDER: brevo
+      BREVO_API_KEY: synthetic-smoke-key-never-used
+      BREVO_API_TIMEOUT_MS: 10000
+      EMAIL_FROM: Renova Africa <noreply@example.test>
       MAIL_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     depends_on:
       migrate:

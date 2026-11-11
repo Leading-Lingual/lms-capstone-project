@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import type { EmailTransport } from './mailbox.transport.js';
 
-export class EmailDeliveryError extends Error {
-  constructor(public retryable: boolean) {
-    // Provider bodies can contain recipient data; never forward them to logs or storage.
-    super('EMAIL_DELIVERY_FAILED');
-  }
-}
+import { EmailDeliveryError } from './delivery-error.js';
+export { EmailDeliveryError } from './delivery-error.js';
 export function resendTransport(
   apiKey: string,
   sender: string,

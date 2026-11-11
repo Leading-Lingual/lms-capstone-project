@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseEmailSender } from '../infrastructure/email/sender.js';
 
 const postgresUrl = z.url().refine((v) => /^postgres(ql)?:/.test(v), 'Expected PostgreSQL URL');
 const frontendUrl = z
@@ -27,32 +28,58 @@ export const envSchema = z
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
     SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(168),
     MAIL_ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/),
-    EMAIL_DRIVER: z.enum(['mailbox', 'resend']).default('mailbox'),
+    EMAIL_PROVIDER: z.enum(['mailbox', 'resend', 'brevo']).optional(),
+    EMAIL_DRIVER: z.enum(['mailbox', 'resend', 'brevo']).default('mailbox'),
+    BREVO_API_KEY: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().trim().min(1).optional(),
+    ),
+    BREVO_API_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
     RESEND_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
-    EMAIL_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.email().optional()),
+    EMAIL_FROM: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z
+        .string()
+        .trim()
+        .max(320)
+        .refine(
+          (value) => !!parseEmailSender(value),
+          'Expected an email address or Name <email@example.com>.',
+        )
+        .optional(),
+    ),
     MAILBOX_DIR: z.string().default('.local/mailbox'),
     LOG_LEVEL: z.enum(['silent', 'debug', 'info', 'warn', 'error']).default('info'),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.EMAIL_DRIVER === 'mailbox') {
+    const provider = env.EMAIL_PROVIDER ?? env.EMAIL_DRIVER;
+    if (env.NODE_ENV === 'production' && provider === 'mailbox') {
       ctx.addIssue({
         code: 'custom',
         message:
           'Production requires an external email transport. Development mailbox must not be deployed.',
       });
     }
-    if (env.EMAIL_DRIVER === 'resend') {
+    if (provider === 'resend') {
       if (!env.RESEND_API_KEY)
         ctx.addIssue({
           code: 'custom',
           path: ['RESEND_API_KEY'],
           message: 'Resend API key is required for the Resend transport.',
         });
+    }
+    if (provider === 'brevo' && !env.BREVO_API_KEY)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BREVO_API_KEY'],
+        message: 'Brevo API key is required for the Brevo transport.',
+      });
+    if (provider !== 'mailbox') {
       if (!env.EMAIL_FROM)
         ctx.addIssue({
           code: 'custom',
           path: ['EMAIL_FROM'],
-          message: 'A verified sender email is required for the Resend transport.',
+          message: 'A verified sender email is required for the selected email transport.',
         });
     }
     if (env.NODE_ENV === 'production') {
@@ -84,6 +111,8 @@ export const envSchema = z
   })
   .transform((env) => ({
     ...env,
+    EMAIL_PROVIDER: env.EMAIL_PROVIDER ?? env.EMAIL_DRIVER,
+    EMAIL_DRIVER: env.EMAIL_PROVIDER ?? env.EMAIL_DRIVER,
     HOST: env.HOST ?? (env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'),
   }));
 export type Config = z.infer<typeof envSchema>;

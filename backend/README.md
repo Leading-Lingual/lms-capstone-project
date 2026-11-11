@@ -31,7 +31,7 @@ Supply `ADMIN_EMAIL` and `ADMIN_PASSWORD` through your shell environment, then r
 ## Account and course workflow
 
 1. Register a student or lecturer through `POST /auth/register`. Public registration cannot grant administrator privileges.
-2. Read the six-digit OTP sent by Resend (or `backend/.local/mailbox` when using the local mailbox driver). Submit `POST /auth/verify-email` with `{ "email": "student@example.com", "otp": "012345" }`. Keep the OTP as a string to preserve leading zeroes. The registration response never contains it.
+2. Read the six-digit OTP sent by the configured email provider (or `backend/.local/mailbox` when using the local mailbox driver). Submit `POST /auth/verify-email` with `{ "email": "student@example.com", "otp": "012345" }`. Keep the OTP as a string to preserve leading zeroes. The registration response never contains it.
 3. Sign in through `POST /auth/login`. Lecturers need approval by an administrator first. Store the response cookie and send it on subsequent requests.
 4. An administrator creates a course, assigns a lecturer, enrols a student, and publishes the course. The student can now read it; another student cannot.
 5. Removing enrolment or deactivating an account blocks subsequent access. Archived published courses remain readable to existing members, while new members and edits are rejected.
@@ -42,7 +42,9 @@ Railway also accepts explicitly configured HTTP origins `http://localhost:3000`,
 
 Verification codes expire after 10 minutes and allow five incorrect attempts. `POST /auth/resend-verification` accepts `{ "email": "student@example.com" }`; it returns a generic 202, including during the 60-second per-account cooldown. A new code invalidates the previous one. After verification, sign in normally. Password recovery continues to use a single-use link, not an OTP.
 
-The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. To send actual email locally, set `EMAIL_DRIVER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` in `backend/.env`, then restart the backend. Production uses the existing Resend transport and requires provider credentials and validated frontend configuration. Origin restrictions apply to OTP endpoints just as they do to registration.
+The default mailbox is private local development output, excluded from source control. Delivery runs every two seconds. The mailbox sends no real email. Hosted email uses Brevo with `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `BREVO_API_TIMEOUT_MS=10000`, and `EMAIL_FROM="Renova Africa <hello@renovaafrica.com>"`. The sender must be active in the Brevo account. To send actual email locally, set those variables in `backend/.env` and restart. Resend remains supported with `EMAIL_PROVIDER=resend` and `RESEND_API_KEY`. `EMAIL_DRIVER` is a legacy alias; an explicit `EMAIL_PROVIDER` takes precedence. Origin restrictions apply to OTP endpoints just as they do to registration.
+
+Brevo receives both HTML and plain text with a stable job UUID for idempotency. Transient failures and timeouts retry through the existing queue; permanent rejections stop retrying. Provider response bodies and keys are never logged. After fixing a provider, request a fresh verification code for an existing unverified account; duplicate registration does not send a new email. Old failed OTP emails must not be requeued because their codes have expired.
 
 The OTP migration invalidates outstanding email verification links; existing unverified users must request a code. Existing sessions, verified accounts, and password recovery links are unaffected. Failed-attempt counts are persisted transactionally and verification hashes are keyed and scoped to the account and challenge. Email payloads remain encrypted in the delivery queue.
 
@@ -78,4 +80,4 @@ See [the foundation decision](docs/architecture-decisions/0001_backend_foundatio
 
 ## Railway staging
 
-The root Dockerfile and `railway.json` prepare an API staging deployment with pre-deploy migrations, a non-root runtime, Resend delivery, and database readiness checks. Follow the [Railway runbook](docs/runbooks/railway-staging.md) and [deployment decision](docs/architecture-decisions/0002_railway_staging.md). Cloud resources and secrets must be configured before a live deployment; no live deployment is implied by these files.
+The root Dockerfile and `railway.json` prepare an API staging deployment with pre-deploy migrations, a non-root runtime, external email delivery, and database readiness checks. Follow the [Railway runbook](docs/runbooks/railway-staging.md), [deployment decision](docs/architecture-decisions/0002_railway_staging.md), and [Brevo decision](docs/architecture-decisions/0005_brevo_email_delivery.md). Cloud resources and secrets must be configured before a live deployment; no live deployment is implied by these files.

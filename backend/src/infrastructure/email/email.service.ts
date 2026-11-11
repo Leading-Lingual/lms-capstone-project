@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Database } from '../database/client.js';
 import { decrypt } from '../../lib/security.js';
 import type { EmailTransport } from './mailbox.transport.js';
-import { EmailDeliveryError } from './resend.transport.js';
+import { EmailDeliveryError } from './delivery-error.js';
 
 const messageSchema = z.object({
   to: z.email(),
